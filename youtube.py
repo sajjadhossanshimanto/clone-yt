@@ -23,10 +23,6 @@ class Video_id:
         self.fetch_coint=0
         
         self.sec_file=f"{self.channel_id}_id.sec"
-        self.token={
-                'pre':'',
-                'next':''
-            }
         self.pre_load()
         atexit.register(self.save_secssion)
     
@@ -36,9 +32,9 @@ class Video_id:
         self.name=info.snippet.title
         self.total_video=int(info.statistics.videoCount)
     
-    def search(self, date=None):
+    def search(self, video_count=5, date=None):
         # api.search(parts='id', channel_id=self.channel_id, order='date', count=self.total_video)
-        url = f"https://www.googleapis.com/youtube/v3/search?key={self.api_key}&channelId={self.channel_id}&part=snippet,id&order=date&maxResults={self.total_video}"
+        url = f"https://www.googleapis.com/youtube/v3/search?key={self.api_key}&channelId={self.channel_id}&part=snippet,id&order=date&maxResults={video_count}"
         if date:
             url+=f'&publishedBefore={date}'
         
@@ -47,6 +43,7 @@ class Video_id:
 
         while True:
             for i in res.items:
+                self.fetch_coint+=1
                 yield (i.id.videoId, i.snippet.title, i.snippet.publishedAt)
 
             next_page=res.nextPageToken
@@ -56,22 +53,8 @@ class Video_id:
             res=requests.get(f'{url}&pageToken={next_page}').json()
             res=SearchListResponse.from_dict(res)
 
-
-    def _content_id(self, skip_count=0)->str:
-        result=api.search
-        result=iter(result.items)
-
-        for _ in range(skip_count):
-            next(result)
-            self.fetch_coint+=1
-
-        for i in result:
-            if i.id.kind.endswith('video'):
-                self.fetch_coint+=1
-                yield i.id.videoId
-    
     def dump(self, from_=None):
-        from_=from_ or self._content_id()
+        from_=from_ or self.search()
         with open(f"{self.name}.csv", 'a') as f:
             writer=csv.writer(f)
             for i in from_:
@@ -103,33 +86,22 @@ class Video_id:
         if exists(self.sec_file):
             with open(self.sec_file) as f:
                 sec=json.load(f)
-            total_video=sec['total_video']
-            fetched=sec['fetched']
-            self.token=sec['token']
-
-            new_upload=self.total_video-total_video
-            print(f'{new_upload} new videos uploaded ever since last fetch')
             
-            _from=self._content_id(skip_count=fetched+new_upload)
-            self.dump(_from)
+            new_upload=self.total_video-sec['total_video']
+            print(f'{new_upload} new videos uploaded ever since last fetch')
+            self.fetch_coint=sec['fetched']+new_upload
             remove(self.sec_file)
-            return
-
-        last_id=next(self.inverse_read_line())
-        _from=self._content_id()
-        for id in _from:
-            if id==last_id:
-                break
-        else:
-            print('last video id find failed for unknown reason')
         
+        last_date=next(self.inverse_read_line())
+        last_date=last_date.rsplit(',', 1)[-1].strip()
+
+        _from=self.search(count=self.total_video-self.fetch_coint, date=last_date)
         self.dump(_from)
 
     def save_secssion(self):
         sec={
             'total_video':self.total_video,
-            'fetched':self.fetch_coint,
-            'token':self.token
+            'fetched':self.fetch_coint
         }
         with open(self.sec_file, 'w') as f:
             json.dump(sec, f)
@@ -150,3 +122,4 @@ def base(video_count=10):
 p=base()
 print(p)
 # %%
+'asss, title, date'.rsplit(',', 1)[-1].strip()
