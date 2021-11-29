@@ -7,6 +7,7 @@ import atexit
 import requests
 from functools import cached_property
 from os.path import exists
+import csv
 from pyyoutube.models.search_result import SearchListResponse
 
 
@@ -35,22 +36,28 @@ class Video_id:
         self.name=info.snippet.title
         self.total_video=int(info.statistics.videoCount)
     
-    def search(self):
+    def search(self, date=None):
         # api.search(parts='id', channel_id=self.channel_id, order='date', count=self.total_video)
         url = f"https://www.googleapis.com/youtube/v3/search?key={self.api_key}&channelId={self.channel_id}&part=snippet,id&order=date&maxResults={self.total_video}"
+        if date:
+            url+=f'&publishedBefore={date}'
         
         res=requests.get(url).json()
-        res=SearchListResponse(res)
+        res=SearchListResponse.from_dict(res)
 
-        res=res.items
-        for i in res:
-            yield (i.id.videoId, i.snippet.title, i.snippet.publishedAt)
+        while True:
+            for i in res.items:
+                yield (i.id.videoId, i.snippet.title, i.snippet.publishedAt)
+
+            next_page=res.nextPageToken
+            if not next_page:
+                break
+
+            res=requests.get(f'{url}&pageToken={next_page}').json()
+            res=SearchListResponse.from_dict(res)
 
 
-    def _content_id(self, skip_count=0, use_token=False)->str:
-        if use_token:
-            pass
-
+    def _content_id(self, skip_count=0)->str:
         result=api.search
         result=iter(result.items)
 
@@ -62,12 +69,13 @@ class Video_id:
             if i.id.kind.endswith('video'):
                 self.fetch_coint+=1
                 yield i.id.videoId
-        
+    
     def dump(self, from_=None):
         from_=from_ or self._content_id()
         with open(f"{self.name}.csv", 'a') as f:
+            writer=csv.writer(f)
             for i in from_:
-                f.write(i+'\n')
+                writer.writerow(i)
                 f.flush()
                 # break
         
