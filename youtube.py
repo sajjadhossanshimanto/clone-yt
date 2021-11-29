@@ -1,12 +1,10 @@
 #%%
-from os import remove
+from os.path import exists
 from secrect import api_key, api3
 import pyyoutube
-import json
 import atexit
 import requests
-from functools import cached_property
-from os.path import exists
+from functools import  partial
 import csv
 from pyyoutube.models.search_result import SearchListResponse
 
@@ -16,16 +14,48 @@ api_key=api3
 api = pyyoutube.Api(api_key=api_key)
 
 #%%
+class Inverse_IO:
+    def __init__(self, path) -> None:
+        self.file=path
+
+    def inverse_read(self):
+        with open(self.file, "a") as f:
+            end=f.tell()
+
+        with open(self.file, encoding='utf-8', errors='ignore') as f:
+            f.seek(end)
+            while f.tell()!=0:
+                pos=f.tell()-1
+                f.seek(pos)
+                char=f.read(1)
+                f.seek(pos)
+                yield char
+
+    def inverse_read_line(self):
+        line=''
+        for char in self.inverse_read():
+            if char!='\n':
+                line=char+line
+            elif line:
+                yield line
+                line=''
+
+#%%
 class Video_id:
     def __init__(self, channel_id) -> None:
         self.channel_id=channel_id
         self.name=None
         self.total_video=0
         self.fetch_coint=0
-        
         self.sec_file=f"{self.channel_id}_id.sec"
-        self.pre_load()
     
+    def start(self):
+        self.pre_load()
+        if exists(self.name):
+            self.resume_dump()
+        else:
+            self.dump()
+
     def pre_load(self):
         info=api.get_channel_info(channel_id=self.channel_id).items[0]
         
@@ -67,30 +97,8 @@ class Video_id:
                 f.flush()
                 # break
         
-    def inverse_read(self):
-        with open(self.name, "a") as f:
-            end=f.tell()
-
-        with open(self.name) as f:
-            f.seek(end)
-            while f.tell()!=0:
-                pos=f.tell()-1
-                f.seek(pos)
-                char=f.read(1)
-                f.seek(pos)
-                yield char
-
-    def inverse_read_line(self):
-        line=''
-        for char in self.inverse_read():
-            if char!='\n':
-                line=char+line
-            elif line:
-                yield line
-                line=''
-
     def resume_dump(self):
-        last_date=next(self.inverse_read_line())
+        last_date=next(Inverse_IO(self.name).inverse_read_line())
         last_date=last_date.rsplit(',', 1)[-1].strip()
 
         # print(last_date, self.fetch_coint)
@@ -102,8 +110,11 @@ class Video_id:
 # %%
 # channel_name='Drzakirchannel'
 channel_id='UC3YmP7nqf514I1zh1eVbzrA'
-Video_id(channel_id).resume_dump()
+# Video_id(channel_id)
 
+
+#%%
+##temp##
 date='2012-08-05T03:38:51Z'
 url = f"https://www.googleapis.com/youtube/v3/search?key={api_key}&channelId={channel_id}&part=snippet,id&order=date&maxResults=10&publishedBefore={date}"
-print(url)
+# print(url)
