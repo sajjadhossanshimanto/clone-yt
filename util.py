@@ -18,12 +18,12 @@ class Inverse_IO:
 
     def inverse_read(self):
         with open(self.file, "a") as f:
-            end=f.tell()
+            pos=f.tell()# end of file
 
         with open(self.file, encoding='utf-8', errors='ignore') as f:
-            f.seek(end)
+            f.seek(pos)
             while f.tell()!=0:
-                pos=f.tell()-1
+                pos=pos-1
                 f.seek(pos)
                 char=f.read(1)
                 f.seek(pos)
@@ -31,15 +31,19 @@ class Inverse_IO:
 
     def inverse_read_line(self):
         line=''
-        for char in self.inverse_read():
+        reader = self.inverse_read()
+        while True:
+            try:
+                char=next(reader)
+            except StopIteration:
+                yield line
+                break
+
             if char!='\n':
                 line=char+line
             elif line:
                 yield line
                 line=''
-        
-        while 1:# do not raise Exception
-            yield ''# receing empty string means end of line
 
 #%%
 @dataclass
@@ -50,8 +54,8 @@ class Row:
     publish_at:str
 
 #%%
-class Db_table:
-    def __init__(self, db_file, table_name) -> None:
+class load_secssion:
+    def __init__(self, sec_file) -> None:
         url=f'sqlite:///{db_file}'
         engine = create_engine(url)
 
@@ -60,56 +64,44 @@ class Db_table:
         self.session = session()
         self.table=Table(table_name, metadata, autoload_with=engine)
 
-    def create_data_class(self, index_key):
-        self.index_column=None
-        instance=[]
-        for column in self.table.columns:
-            column_name=column.name
-            column_type=column.type.python_type
-            if not self.index_column and column_name==index_key:
-                self.index_column=column
-                repr=True
-                instance.append((column_name, column_type, field(repr=True)))
-                continue
-                
-            instance.append((column_name, column_type, field(repr=False)))
+        self.rows=self.read_inverse(self.stored_index(sec_file))
 
-        if not self.index_column:
-            raise ValueError(f'Index key("{index_key}") not found')
-        
-        self.row_data=make_dataclass("Row", instance)
-
-    def read_inverse(self):
+    def read_inverse(self, from_=None):
         stmt=select(self.table).order_by(self.table.c.index.desc())
+        if isinstance(from_, int):
+            # stored section indicates what needs to downloaded
+            stmt=stmt.where(self.table.c.index<=from_)
 
         for row in self.session.execute(stmt):
             yield Row(*row)
 
-    def nth_index(self, n):
-        stmt=select(self.table).where(self.table.c.index==n).order_by(self.index_column.desc())
+    def stored_index(self, sec_file):
+        if not exists(sec_file):
+            return None
 
-        row=self.session.execute(stmt).fetchone()
-        return Row(*row)
+        try:
+            last_index=Inverse_IO(sec_file).inverse_read_line().__next__()
+        except StopIteration:
+            return None
 
-    def __getitem__(self, n):
-        return self.nth_index(n)
-
-#%5
-def read_secssion(db:Db_table, sec_file)-> Row:
-    if exists(sec_file):
-        # try:
-        last_index=Inverse_IO(sec_file).inverse_read_line().__next__()
         try:
             last_index=int(last_index)
         except ValueError:
-            row=next(db.read_inverse())
-        else:
-            row=db.nth_index(last_index)
-    else:
-        row=next(db.read_inverse())
-    return row
+            return None
+            
+        return last_index
+    
+    def __iter__(self):
+        return self
+
+    def __next__(self):
+        return next(self.rows)
+
 
 def write_secssion(sec_file, n):
+    last_char=next(Inverse_IO(sec_file).inverse_read())
     n=str(n)
     with open(sec_file, 'a') as f:
-        f.write(n)
+        if last_char!='\n':
+            f.write('\n')
+        f.write(n+'\n')
