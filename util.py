@@ -4,12 +4,28 @@ from dataclasses import dataclass, field, make_dataclass
 from sqlalchemy import orm, Table, select, create_engine, MetaData
 from sqlalchemy.sql.expression import false
 from os.path import join, exists
+from requests import get
+from config import thumbnail_folder, thumbnail_ext, db_file, table_name
 
 
-video_folder='video'
-thumbnail_folder='video/thumbnail'
-table_name='DrZakirNaik'
-db_file='Youtube.db'
+run=True
+
+def download_thumbnail(d=None, info=None):
+    print('downloading thumbnail')
+    # url=f"https://i.ytimg.com/vi_webp/{video_id}/maxresdefault.webp"
+    if d:
+        url=d.thumbnail_url
+        video_id=d.url.rsplit('=', 1)[-1]
+    else:
+        url=info['thumbnail']
+        video_id=info['webpage_url_basename']
+    
+    path=join(thumbnail_folder, video_id)
+    path+=thumbnail_ext
+    with open(path, 'wb') as fb:
+        fb.write(get(url).content)
+    
+    return path
 
 #%%
 class Inverse_IO:
@@ -99,7 +115,11 @@ class load_secssion:
 
 
 def write_secssion(sec_file, n):
-    last_char=next(Inverse_IO(sec_file).inverse_read())
+    try:
+        last_char=next(Inverse_IO(sec_file).inverse_read())
+    except StopIteration:
+        last_char='\n'
+    
     n=str(n)
     with open(sec_file, 'a') as f:
         if last_char!='\n':
