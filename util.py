@@ -2,13 +2,13 @@ import atexit
 from functools import  partial
 from dataclasses import dataclass, field, make_dataclass
 from sqlalchemy import orm, Table, select, create_engine, MetaData
-from sqlalchemy.sql.expression import false
 from os.path import join, exists
 from requests import get
-from config import thumbnail_folder, thumbnail_ext, db_file, table_name
+from config import thumbnail_folder, db_file, table_name
 
 
 run=True
+thumbnail_ext='.webp'
 
 def download_thumbnail(d=None, info=None):
     print('downloading thumbnail')
