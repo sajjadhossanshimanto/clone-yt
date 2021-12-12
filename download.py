@@ -1,5 +1,5 @@
 # standard modules
-from os.path import exists, join
+from os.path import exists, join, splitext
 import sys
 import signal
 from typing import Text
@@ -13,7 +13,7 @@ from firedm.cmdview import CmdView
 from firedm.setting import load_setting
 from firedm import FireDM
 from firedm.utils import log
-from util import load_secssion, write_secssion, download_thumbnail
+from util import list_video_folder, load_secssion, write_secssion, download_thumbnail
 import time
 import util
 
@@ -36,6 +36,7 @@ typegrud
 
 load_setting()
 controller = Controller(view_class=CmdView)
+controller.run()
 
 def cleanup():
     controller.quit()
@@ -56,6 +57,7 @@ signal.signal(signal.SIGINT, signal_handler)
 def download_d(d):
     controller._download(d, threaded=False)
     controller.view.progress=0
+    
     # download thumblain
     download_thumbnail(d)
 
@@ -81,6 +83,7 @@ if paused:
         d=controller.d_map[paused.pop()]
         download_d(d)
 
+saved_video=list_video_folder()
 secssion=load_secssion(sec_file)
 while util.run:
     try:
@@ -91,8 +94,20 @@ while util.run:
     url=f'https://youtu.be/{data.video_id}'
     d=controller.process_url(url, threaded=False)[0]
     d.select_stream(quality='best')
-    loaded=controller.download(d=d, threaded=False)
+    if d.title in saved_video:
+        log(f'{d.title} is already exists. ')
+        continue
+        if d.extension!=saved_video[d.title]:
+            log('video extention mismatched. re-downloading the best quality.')
+            # os.remove
+        elif 'check for incomplite':
+            pass
+        elif 'quality check by ffmpeg':
+            pass
+        else:
+            continue
     
+    loaded=controller.download(d=d, threaded=False)
     write_secssion(sec_file, data.index-1)
     log(f'download later secssion saved for {data.index-1}')
     if loaded:

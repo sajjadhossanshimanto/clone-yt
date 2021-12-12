@@ -2,43 +2,16 @@
 from os.path import exists
 from secrect import api_key, api3
 import pyyoutube
-import atexit
 import requests
-from functools import  partial
+from util import Inverse_IO
 import csv
 from pyyoutube.models.search_result import SearchListResponse
 
 
-api_key=api3
 # %%
+api_key=api3
 api = pyyoutube.Api(api_key=api_key)
 
-#%%
-class Inverse_IO:
-    def __init__(self, path) -> None:
-        self.file=path
-
-    def inverse_read(self):
-        with open(self.file, "a") as f:
-            end=f.tell()
-
-        with open(self.file, encoding='utf-8', errors='ignore') as f:
-            f.seek(end)
-            while f.tell()!=0:
-                pos=f.tell()-1
-                f.seek(pos)
-                char=f.read(1)
-                f.seek(pos)
-                yield char
-
-    def inverse_read_line(self):
-        line=''
-        for char in self.inverse_read():
-            if char!='\n':
-                line=char+line
-            elif line:
-                yield line
-                line=''
 
 #%%
 class Video_id:

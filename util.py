@@ -2,13 +2,15 @@ import atexit
 from functools import  partial
 from dataclasses import dataclass, field, make_dataclass
 from sqlalchemy import orm, Table, select, create_engine, MetaData
-from os.path import join, exists
+from os.path import join, exists, isfile, splitext
+import os
 from requests import get
-from config import thumbnail_folder, db_file, table_name
+from config import thumbnail_folder, db_file, table_name, video_folder
 
 
 run=True
 thumbnail_ext='.webp'
+video_ext=('mp4', 'webm')
 
 def download_thumbnail(d=None, info=None):
     print('downloading thumbnail')
@@ -26,6 +28,15 @@ def download_thumbnail(d=None, info=None):
         fb.write(get(url).content)
     
     return path
+
+def list_video_folder():
+    video_list={}
+    for file in os.listdir(video_folder):
+        video_file=join(video_folder, file)
+        if isfile(video_file) and file.endswith(video_ext):
+            file, ex = splitext(file)
+            video_list[file]=ex
+    return video_list
 
 #%%
 class Inverse_IO:

@@ -1,7 +1,6 @@
 #%%
 import datetime
 import json
-import os
 import pickle
 import sys
 from os.path import exists, isfile, join, splitext
@@ -17,12 +16,13 @@ from firedm.utils import log, validate_file_name
 from firedm.video import get_media_info, load_extractor_engines
 from secrect import client_id, client_secret, refresh_token
 from util import (download_thumbnail, load_secssion, thumbnail_ext,
-                  write_secssion)
+                  write_secssion, list_video_folder)
 from youtube_upload.main import get_category_id, get_progress_info
 from youtube_upload.upload_video import upload
 
 
 scope = ["https://www.googleapis.com/auth/youtube"]
+sec_file='last_upload'
 
 #%%
 def get_token():
@@ -132,16 +132,7 @@ def set_thumb(video_id, path):
     youtube.thumbnails().set(videoId=video_id, media_body=path).execute()
 
 
-video_ext=('mp4', 'webm')
-sec_file='last_upload'
-
-video_list={}
-for file in os.listdir(video_folder):
-    video_file=join(video_folder, file)
-    if isfile(video_file) and file.endswith(video_ext):
-        file, ex = splitext(file)
-        video_list[file]=ex
-
+video_list=list_video_folder()
 
 if not video_list:
     print('no downloaded file exist')
